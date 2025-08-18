@@ -31,7 +31,7 @@ def get_cache_dir(create: bool = True) -> Path:
     return ensure_cache_dir() if create else CACHE_DIR
 
 
-def get_cache() -> Cache:
+def get_diskcache() -> Cache:
     global _cache
     if _cache is None:
         cache_dir = get_cache_dir()
@@ -48,4 +48,4 @@ def get_cache() -> Cache:
     return _cache
 
 
-__all__ = ["get_cache"]
+__all__ = ["get_diskcache"]
