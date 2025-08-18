@@ -5,8 +5,8 @@ from typing import Optional
 import atexit
 import logging
 
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
+log = logging.getLogger(__name__)
+log.addHandler(logging.NullHandler())
 
 APP_NAME = "TornoTradeCraft"
 APP_AUTHOR = "Dr.Abhijith Anandakrishnan"
@@ -15,6 +15,7 @@ APP_AUTHOR = "Dr.Abhijith Anandakrishnan"
 CACHE_DIR = Path(user_cache_dir(APP_NAME, APP_AUTHOR)) / "cache"
 
 _cache: Optional[Cache] = None
+
 
 def ensure_cache_dir(mode: int = 0o755) -> Path:
     """
@@ -35,7 +36,7 @@ def get_diskcache() -> Cache:
     global _cache
     if _cache is None:
         cache_dir = get_cache_dir()
-        logger.debug(f"Initializing cache at {cache_dir}")
+        log.debug(f"Initializing cache at {cache_dir}")
         _cache = Cache(
             cache_dir,
             shard_limit=1000,
