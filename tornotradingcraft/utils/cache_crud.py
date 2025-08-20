@@ -2,8 +2,8 @@ import pandas as pd
 import io
 import logging
 from typing import Optional
-from utils.cache import get_diskcache
 from diskcache import Cache
+from tornotradingcraft.utils.cache import get_diskcache
 
 # Get a logger for this module
 log = logging.getLogger(__name__)

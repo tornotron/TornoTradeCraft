@@ -39,11 +39,10 @@ def get_diskcache() -> Cache:
         log.debug(f"Initializing cache at {cache_dir}")
         _cache = Cache(
             cache_dir,
+            timeout=60*60*24*7,
             shard_limit=1000,
             size_limit=10**9,
             eviction_policy='least-recently-used',
-            disk_cache=True,
-            timeout=60*60*24*7,
         )
         atexit.register(lambda: _cache.close() if _cache is not None else None)
     return _cache
