@@ -11,7 +11,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, List, Dict, Iterable
-
+from pandas import DataFrame
+from enum import Enum
 
 @dataclass
 class SymbolInfo:
@@ -67,7 +68,7 @@ class DataProvider(ABC):
         raise NotImplementedError
     
     @abstractmethod
-    def update_supported_symbols(self) -> None:
+    def update_supported_symbols(self, filepath: str) -> None:
         """Update the cached list of supported symbols from the provider.
 
         This is optional; if not implemented, `get_supported_symbols` will
@@ -90,6 +91,15 @@ class DataProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_symbol_info(self) -> List[SymbolInfo]:
+        """Return metadata for all supported symbols.
+
+        This is optional; if not implemented, users can call `search_symbols`
+        or `get_symbol_info(symbol)` for individual symbols.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def get_quote(self, symbol: str) -> Quote:
         """Return the latest Quote for the given symbol."""
         raise NotImplementedError
@@ -100,24 +110,29 @@ class DataProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_historical_prices(
+    def get_historical_data(
         self,
         symbol: str,
+        period: Optional[Enum] = None,
         start: Optional[datetime] = None,
         end: Optional[datetime] = None,
-        interval: str = "1d",
-    ) -> List[OHLCV]:
-        """Return historical OHLCV bars for the symbol between start and end.
+        interval: Optional[Enum] = None,
+    ) -> DataFrame:
+        """Return historical data in a pandas Dataframe for the symbol between start and end.
 
         Interval is provider-specific (e.g. "1d", "1h", "1m").
         """
         raise NotImplementedError
 
-    def close(self) -> None:
-        """Optional cleanup (HTTP sessions, sockets). Implementations should
-        override if they hold resources.
+    @abstractmethod
+    def convert_to_jupyter_chart_format(self, data: DataFrame) -> DataFrame:
+        """Convert provider-specific historical DataFrame to a JupyterChart-friendly DataFrame.
+
+        Expected returned columns: ['time', 'open', 'high', 'low', 'close', 'volume'].
+        Implementations should normalize column names and ensure 'time' is a column
+        (convert DatetimeIndex to a column if necessary).
         """
-        return
+        raise NotImplementedError
 
 
 __all__ = ["SymbolInfo", "Quote", "OHLCV", "DataProvider"]

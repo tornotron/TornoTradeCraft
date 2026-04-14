@@ -1,11 +1,13 @@
 from typing import List, Iterable, Optional, Dict
 from datetime import datetime
 import pandas as pd
-from tornotradingcraft.providers import DataProvider, SymbolInfo, Quote, OHLCV
-from tornotradingcraft.utils import update_asset_file
+from tornotradingcraft.providers import DataProvider, SymbolInfo, Quote
+from tornotradingcraft.utils import update_asset_file, safe_call
 from tornotradingcraft.utils.cache_crud import load_df_from_cache, save_df_to_cache
 from tornotradingcraft.config import ASSETS_PATH
-
+from pandas import DataFrame
+import yfinance as yf
+from tornotradingcraft.utils.enums import YahooPeroid, YahooInterval
 class YahooFinanceProvider(DataProvider):
     """Concrete implementation of DataProvider for Yahoo Finance."""
 
@@ -53,11 +55,7 @@ class YahooFinanceProvider(DataProvider):
             df = pd.read_parquet(parquet_path)
 
             # Save to cache for future reads (best-effort)
-            try:
-                save_df_to_cache(cache_key, df)
-            except Exception:
-                # Swallow caching errors; reading from assets succeeded so continue
-                pass
+            safe_call(save_df_to_cache, cache_key, df)
 
         # At minimum we require the 'ticker' column; other columns are optional
         # and will be set to None if missing.
@@ -86,6 +84,11 @@ class YahooFinanceProvider(DataProvider):
 
         return symbols
 
+    def search_symbols(self, query: str, limit: int) -> Iterable[SymbolInfo]:
+        """Search for symbols matching a query."""
+        # Implementation to search symbols using Yahoo Finance API
+        raise NotImplementedError("search_symbols is not implemented for YahooFinanceProvider")
+
     def get_symbol_info(self, symbol: str) -> SymbolInfo:
         """Fetch metadata for a given symbol."""
         # Implementation to fetch symbol info from Yahoo Finance API
@@ -100,25 +103,55 @@ class YahooFinanceProvider(DataProvider):
         """Return latest quotes for multiple symbols as a dict keyed by symbol."""
         raise NotImplementedError
 
-    def get_historical_prices(
+    def get_historical_data(
         self,
         symbol: str,
+        period: Optional[YahooPeroid] = None,
         start: Optional[datetime] = None,
         end: Optional[datetime] = None,
-        interval: str = "1d",
-    ) -> List[OHLCV]:
+        interval: Optional[YahooInterval] = None,
+    ) -> DataFrame:
         """Return historical OHLCV bars for the symbol between start and end.
 
         Interval is provider-specific (e.g. "1d", "1h", "1m").
         """
-        raise NotImplementedError
+        asset = yf.Ticker(
+            symbol,
+        )
+        p  = period.value if period else "1d"
+        i = interval.value if interval else "1m"
+        data = asset.history(period=p, interval=i)
+        return data
 
-    def get_historical_data(self, symbol: str, start: datetime, end: datetime) -> List[OHLCV]:
-        """Fetch historical OHLCV data for a given symbol."""
-        # Implementation to fetch historical data from Yahoo Finance API
-        raise NotImplementedError("get_historical_data is not implemented for YahooFinanceProvider")
+    def convert_to_jupyter_chart_format(self, data: DataFrame) -> DataFrame:
+        """Convert provider DataFrame to JupyterChart-friendly format.
 
-    def search_symbols(self, query: str) -> Iterable[SymbolInfo]:
-        """Search for symbols matching a query."""
-        # Implementation to search symbols using Yahoo Finance API
-        raise NotImplementedError("search_symbols is not implemented for YahooFinanceProvider")
+        Ensures columns: time, open, high, low, close, volume (in that order).
+        Raises KeyError if required columns are missing after normalization.
+        """
+        df = data.copy()
+
+        # If the DataFrame uses a DatetimeIndex, reset it and name the time column
+        if isinstance(df.index, pd.DatetimeIndex):
+            df = df.reset_index()
+            # after reset_index, the datetime index becomes the first column
+            df = df.rename(columns={df.columns[0]: "time"})
+
+        # Normalize OHLCV column names to lowercase
+        col_map = {}
+        for c in df.columns:
+            lc = c.strip().lower()
+            if lc in ("open", "high", "low", "close", "volume"):
+                col_map[c] = lc
+        df = df.rename(columns=col_map)
+
+        required = ["time", "open", "high", "low", "close", "volume"]
+        missing = [c for c in required if c not in df.columns]
+        if missing:
+            raise KeyError(
+                f"Missing required columns after transform: {missing}. Available columns: {list(df.columns)}"
+            )
+
+        # Reorder and return only required columns
+        df = df[required]
+        return df
