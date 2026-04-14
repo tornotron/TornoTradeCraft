@@ -23,7 +23,7 @@ class BacktesterBacktrader(Backtester):
     def name(self) -> str:
         return "backtrader"
 
-    def get_data_from_provider(self, provider: DataProvider, data: DataFrame, to_btfeed: bool = False, **kwargs) -> DataFrame:
+    def get_bt_compatible_formatted_data(self, provider: DataProvider, data: DataFrame, to_btfeed: bool = False, **kwargs) -> DataFrame:
         """Normalize DataFrame according to provider metadata/type.
 
         Currently supports providers that identify themselves with a `name`

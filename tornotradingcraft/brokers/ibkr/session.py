@@ -34,7 +34,12 @@ _shared_broker: Optional[IBKRBroker] = None
 _ref_count: int = 0
 
 
-def acquire_shared_broker(host: str = "127.0.0.1", port: int = 7497, client_id: int = 1, connect_timeout: float = 10.0) -> IBKRBroker:
+# Client ID used by the shared singleton broker. Not exposed to callers
+# because this module manages exactly one connection.
+_SHARED_CLIENT_ID = 1
+
+
+def acquire_shared_broker(host: str = "127.0.0.1", port: int = 7497, connect_timeout: float = 10.0) -> IBKRBroker:
     """Acquire (and connect if needed) the shared IBKRBroker.
 
     The function is thread-safe. Each successful call increments an internal
@@ -49,7 +54,7 @@ def acquire_shared_broker(host: str = "127.0.0.1", port: int = 7497, client_id: 
 
     with _lock:
         if _shared_broker is None:
-            b = IBKRBroker(host=host, port=port, client_id=client_id, connect_timeout=connect_timeout)
+            b = IBKRBroker(host=host, port=port, client_id=_SHARED_CLIENT_ID, connect_timeout=connect_timeout)
             b.connect()
             _shared_broker = b
         _ref_count += 1
@@ -84,7 +89,7 @@ def get_shared_broker() -> Optional[IBKRBroker]:
 
 
 def ensure_connected(func: Callable[..., Any] | None = None, *, host: str = "127.0.0.1", port: int = 7497,
-                     client_id: int = 1, connect_timeout: float = 10.0, inject_name: str = "broker"):
+                     connect_timeout: float = 10.0, inject_name: str = "broker"):
     """Decorator that acquires/releases the shared IBKR broker for the duration of the
     wrapped function call.
 
@@ -101,15 +106,15 @@ def ensure_connected(func: Callable[..., Any] | None = None, *, host: str = "127
         def my_task(..., broker=None):
             # use broker
 
-        @ensure_connected(host='127.0.0.1', client_id=5)
+        @ensure_connected(inject_name='ib')
         def my_task2(..., ib=None):
-            # use ib (if inject_name='ib')
+            # use ib
     """
 
     def _decorator(f: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(f)
         def _wrapped(*args, **kwargs):
-            b = acquire_shared_broker(host=host, port=port, client_id=client_id, connect_timeout=connect_timeout)
+            b = acquire_shared_broker(host=host, port=port, connect_timeout=connect_timeout)
             try:
                 # Inject broker if caller hasn't provided one explicitly
                 if inject_name not in kwargs:
@@ -139,8 +144,8 @@ class SharedIBKR:
     broker stays connected between cells.
     """
 
-    def __init__(self, host: str = "127.0.0.1", port: int = 7497, client_id: int = 1, connect_timeout: float = 10.0):
-        self._args = (host, port, client_id, connect_timeout)
+    def __init__(self, host: str = "127.0.0.1", port: int = 7497, connect_timeout: float = 10.0):
+        self._args = (host, port, connect_timeout)
         self.broker: Optional[IBKRBroker] = None
 
     def __enter__(self) -> IBKRBroker:
