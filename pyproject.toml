@@ -11,6 +11,12 @@ appdirs = "^1.4.4"
 diskcache = "^5.6.3"
 pandas = {extras = ["pyarrow"], version = "^2.3.1"}
 openpyxl = "^3.1.5"
+backtrader = "^1.9.78.123"
+backtrader-plotting = "^2.0.0"
+yfinance = "^0.2.65"
+lightweight-charts = "^2.1"
+ibapi = "^9.81.1.post1"
+ib-insync = "^0.9.86"
 
 [build-system]
 requires = ["poetry-core"]
